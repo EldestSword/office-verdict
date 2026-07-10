@@ -10,7 +10,7 @@
     "check": "node --check public/app.js && node --check public/admin.js"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.8"
