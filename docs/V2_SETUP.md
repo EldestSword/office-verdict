@@ -26,11 +26,7 @@ The admin page has a **Bulk import** tab. It supports:
 - up to 1,000 questions per import;
 - automatic skipping of questions already in the database.
 
-A ready-made bank of 240 office-safe questions is included at:
-
-`data/starter-question-bank.csv`
-
-Upload that file from the admin page after V2 is deployed.
+A ready-made bank of 240 office-safe questions is supplied separately with the release. Upload that CSV from the admin page after V2 is deployed.
 
 ## Reporting included
 
