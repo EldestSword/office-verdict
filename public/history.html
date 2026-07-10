@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111827">
+  <title>Office Verdict History</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/history.js" type="module"></script>
+</head>
+<body>
+  <div class="page-shell">
+    <header class="site-header">
+      <a class="brand" href="/">
+        <span class="brand-mark" aria-hidden="true">✓</span>
+        <span>
+          <strong>Office Verdict</strong>
+          <small>Previous verdicts and questionable wisdom</small>
+        </span>
+      </a>
+      <nav class="header-links" aria-label="Main navigation">
+        <a class="subtle-link" href="/">Current vote</a>
+        <a class="subtle-link" href="/admin.html">Admin</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero-card compact-hero">
+        <div class="eyebrow-row">
+          <span class="eyebrow">History</span>
+          <span id="historyCount" class="date-chip">Loading…</span>
+        </div>
+        <h1>Previous verdicts</h1>
+        <p class="category-text">Top three results, full rankings and the anonymous comments people were brave enough to submit.</p>
+      </section>
+
+      <div id="historyNotice" class="notice" role="status" aria-live="polite" hidden></div>
+
+      <section class="panel compact-panel history-controls">
+        <label>
+          <span>Search questions</span>
+          <input id="historySearch" type="search" placeholder="Search by question, category or person…">
+        </label>
+        <label>
+          <span>Category</span>
+          <select id="historyCategory">
+            <option value="">All categories</option>
+          </select>
+        </label>
+      </section>
+
+      <section id="historyList" class="history-list" aria-live="polite"></section>
+    </main>
+
+    <footer>
+      <span>Public comments are anonymous.</span>
+      <span>Office Verdict</span>
+    </footer>
+  </div>
+</body>
+</html>
