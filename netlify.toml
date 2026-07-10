@@ -1,0 +1,48 @@
+[build]
+  publish = "public"
+  functions = "netlify/functions"
+
+[functions]
+  node_bundler = "esbuild"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+[[redirects]]
+  from = "/api/status"
+  to = "/.netlify/functions/status"
+  status = 200
+
+[[redirects]]
+  from = "/api/vote"
+  to = "/.netlify/functions/vote"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/data"
+  to = "/.netlify/functions/admin-data"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/question"
+  to = "/.netlify/functions/admin-question"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/person"
+  to = "/.netlify/functions/admin-person"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/export"
+  to = "/.netlify/functions/admin-export"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
