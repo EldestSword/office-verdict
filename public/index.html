@@ -19,22 +19,25 @@
           <small>The office has spoken. Regrettably.</small>
         </span>
       </a>
-      <a class="subtle-link" href="/admin.html">Admin</a>
+      <nav class="header-links" aria-label="Main navigation">
+        <a class="subtle-link" href="/history.html">History</a>
+        <a class="subtle-link" href="/admin.html">Admin</a>
+      </nav>
     </header>
 
     <main>
       <section class="hero-card" aria-labelledby="questionHeading">
         <div class="eyebrow-row">
-          <span class="eyebrow">Today’s question</span>
-          <span id="questionDate" class="date-chip"></span>
+          <span class="eyebrow">Current question</span>
+          <span id="roundStatus" class="date-chip">Loading…</span>
         </div>
-        <h1 id="questionHeading">Loading today’s verdict…</h1>
+        <h1 id="questionHeading">Loading the current verdict…</h1>
         <p id="categoryText" class="category-text"></p>
 
         <div id="participation" class="participation" hidden>
           <div class="participation-copy">
             <strong id="participationCount">0 of 0 votes</strong>
-            <span id="revealMessage">Results appear at 4:00 pm.</span>
+            <span id="closeMessage"></span>
           </div>
           <div class="progress-track" aria-hidden="true">
             <span id="participationBar"></span>
@@ -46,41 +49,29 @@
 
       <section id="noQuestionPanel" class="panel empty-state" hidden>
         <div class="empty-icon" aria-hidden="true">?</div>
-        <h2>No question has been scheduled today</h2>
-        <p>Democracy has been postponed. Productivity may briefly recover.</p>
+        <h2>No voting round is open</h2>
+        <p>The office may briefly return to productive employment.</p>
       </section>
 
       <section id="votePanel" class="panel" hidden>
         <div class="section-heading">
           <div>
-            <span class="step-label">Step 1</span>
-            <h2>Who are you?</h2>
-          </div>
-          <p>Your vote is stored privately. Public results show totals only.</p>
-        </div>
-
-        <div class="identity-grid">
-          <label>
-            <span>Your name</span>
-            <select id="voterSelect">
-              <option value="">Choose your name</option>
-            </select>
-          </label>
-          <label>
-            <span>Your four-digit PIN</span>
-            <input id="pinInput" type="password" inputmode="numeric" maxlength="4" autocomplete="current-password" placeholder="••••">
-          </label>
-        </div>
-
-        <div class="section-heading choice-heading">
-          <div>
-            <span class="step-label">Step 2</span>
+            <span class="step-label">Your ballot</span>
             <h2>Cast your vote</h2>
           </div>
-          <p>You can change it until results are revealed.</p>
+          <div class="identity-chip">
+            <span>Voting as <strong id="currentVoterName">Nobody</strong></span>
+            <button id="changeVoterButton" class="text-button" type="button">Change</button>
+          </div>
         </div>
 
         <div id="peopleGrid" class="people-grid" role="radiogroup" aria-label="Choose a colleague"></div>
+
+        <label class="comment-field">
+          <span>Why did you choose them? <small>Optional and shown anonymously after voting closes</small></span>
+          <textarea id="commentInput" maxlength="280" rows="3" placeholder="Add a comment…"></textarea>
+          <span id="commentCount" class="character-count">0 / 280</span>
+        </label>
 
         <div class="vote-actions">
           <div id="selectionSummary" class="selection-summary">Nobody selected yet.</div>
@@ -88,15 +79,15 @@
         </div>
       </section>
 
-      <section id="resultsPanel" class="panel" hidden>
+      <section class="panel history-preview-panel">
         <div class="section-heading">
           <div>
-            <span class="step-label">The verdict</span>
-            <h2>Today’s results</h2>
+            <span class="step-label">Previous verdicts</span>
+            <h2>Recently decided</h2>
           </div>
-          <p id="winnerText"></p>
+          <a class="secondary-link" href="/history.html">View full history</a>
         </div>
-        <div id="resultsList" class="results-list"></div>
+        <div id="historyPreview" class="verdict-card-grid"></div>
       </section>
     </main>
 
@@ -105,5 +96,23 @@
       <span>Office Verdict</span>
     </footer>
   </div>
+
+  <dialog id="identityDialog" class="identity-dialog">
+    <form id="identityForm" method="dialog">
+      <span class="step-label">First things first</span>
+      <h2>Who are you?</h2>
+      <p>Choose your name once and this browser will remember you. Revolutionary technology from approximately 1997.</p>
+      <label>
+        <span>Your name</span>
+        <select id="identitySelect" required>
+          <option value="">Choose your name</option>
+        </select>
+      </label>
+      <div class="button-row dialog-actions">
+        <button class="primary-button" type="submit">Remember me</button>
+        <button id="cancelIdentityButton" class="secondary-button" type="button">Cancel</button>
+      </div>
+    </form>
+  </dialog>
 </body>
 </html>
