@@ -1,51 +1,45 @@
 # Office Verdict
 
-A small daily office voting app. One question is scheduled for each day, colleagues vote anonymously, results appear after the configured reveal time, and an admin page provides scheduling, PIN management, reporting and CSV export.
+A small office voting app hosted on Netlify with Supabase storage.
 
-## What is included
+## V2 features
 
-- Netlify-hosted static front end
-- Netlify Functions for all database access
-- Supabase PostgreSQL storage
-- One vote per person per question
-- No self-voting
-- Vote changes allowed until results are revealed
-- Name plus four-digit PIN voting
-- Results hidden until 4pm London time unless revealed manually
-- Admin question scheduling
-- Team member activation and PIN reset
-- Daily results and historical reporting
-- Detailed CSV export for the administrator
+- remembers each voter on their browser after the first name selection;
+- no voter PINs;
+- one live voting round at a time, with 30-minute, hourly, multi-hour or manual closing;
+- optional scheduled openings;
+- optional anonymous comments attached to votes;
+- public top-three cards and full result history;
+- reusable question bank and random question launcher;
+- bulk import of up to 1,000 questions at once;
+- included starter CSV containing 240 office-safe questions;
+- admin comment moderation;
+- leaderboard, category, turnout and round reporting;
+- detailed CSV export;
+- Netlify Functions keep the Supabase secret key out of the browser.
 
 ## Required Netlify environment variables
-
-Create these in **Site configuration → Environment variables**:
 
 ```text
 SUPABASE_URL
 SUPABASE_SECRET_KEY
 ADMIN_PASSWORD
+AWS_LAMBDA_JS_RUNTIME=nodejs24.x
 ```
 
-Never commit real values to this repository.
+The secret key and admin password should be marked as secret values and set for the Production context.
 
-## Deploy
+## V2 release
 
-1. Connect this repository to Netlify.
-2. Netlify will detect `netlify.toml` automatically.
-3. Add the three environment variables.
-4. Trigger a deployment.
-5. Open `/admin.html` and sign in with `ADMIN_PASSWORD`.
-6. Generate or set PINs for the team.
+Read [`docs/V2_SETUP.md`](docs/V2_SETUP.md) before deploying. The Supabase migration must be run before the V2 code is released.
 
 ## Local development
 
 ```bash
 npm install
-cp .env.example .env
 npm run dev
 ```
 
-## Security model
+## Security and privacy
 
-The browser never receives the Supabase secret key. All reads and writes pass through Netlify Functions. The database tables use Row Level Security with no public policies, while the server-side secret key is stored only in Netlify environment variables.
+The browser never receives the Supabase secret key. Database tables use Row Level Security with no direct public policies. Public results show totals and anonymous comments only. The administrator can see individual voter records for moderation and export purposes.
