@@ -13,8 +13,8 @@ export async function handler(event) {
 
     const [peopleResult, questionsResult, votesResult] = await Promise.all([
       supabase.from('people').select('id, name'),
-      supabase.from('questions').select('id, scheduled_date, question_text, category'),
-      supabase.from('votes').select('question_id, voter_id, selected_person_id, created_at, updated_at'),
+      supabase.from('questions').select('id, question_text, category, tags, status, voting_opens_at, voting_closes_at, closed_at'),
+      supabase.from('votes').select('question_id, voter_id, selected_person_id, comment_text, comment_hidden, created_at, updated_at'),
     ]);
 
     if (peopleResult.error) throw peopleResult.error;
@@ -24,18 +24,34 @@ export async function handler(event) {
     const people = new Map((peopleResult.data ?? []).map((person) => [person.id, person.name]));
     const questions = new Map((questionsResult.data ?? []).map((question) => [question.id, question]));
 
-    const rows = [
-      ['Date', 'Question', 'Category', 'Voter', 'Selected colleague', 'Created at', 'Last changed'],
-    ];
+    const rows = [[
+      'Question',
+      'Category',
+      'Tags',
+      'Round status',
+      'Opened at',
+      'Closed at',
+      'Voter',
+      'Selected colleague',
+      'Comment',
+      'Comment hidden',
+      'Vote created at',
+      'Vote last changed',
+    ]];
 
     for (const vote of votesResult.data ?? []) {
       const question = questions.get(vote.question_id) ?? {};
       rows.push([
-        question.scheduled_date ?? '',
         question.question_text ?? '',
         question.category ?? '',
+        (question.tags ?? []).join('; '),
+        question.status ?? '',
+        question.voting_opens_at ?? '',
+        question.closed_at ?? question.voting_closes_at ?? '',
         people.get(vote.voter_id) ?? 'Unknown',
         people.get(vote.selected_person_id) ?? 'Unknown',
+        vote.comment_text ?? '',
+        vote.comment_hidden ? 'Yes' : 'No',
         vote.created_at ?? '',
         vote.updated_at ?? '',
       ]);
@@ -46,7 +62,7 @@ export async function handler(event) {
       ...text(200, `\uFEFF${csv}`, 'text/csv; charset=utf-8'),
       headers: {
         'content-type': 'text/csv; charset=utf-8',
-        'content-disposition': 'attachment; filename="office-verdict-votes.csv"',
+        'content-disposition': 'attachment; filename="office-verdict-votes-and-comments.csv"',
         'cache-control': 'no-store',
       },
     };
