@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111827">
+  <title>Office Verdict</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" type="module"></script>
+</head>
+<body>
+  <div class="page-shell">
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="Office Verdict home">
+        <span class="brand-mark" aria-hidden="true">✓</span>
+        <span>
+          <strong id="appName">Office Verdict</strong>
+          <small>The office has spoken. Regrettably.</small>
+        </span>
+      </a>
+      <a class="subtle-link" href="/admin.html">Admin</a>
+    </header>
+
+    <main>
+      <section class="hero-card" aria-labelledby="questionHeading">
+        <div class="eyebrow-row">
+          <span class="eyebrow">Today’s question</span>
+          <span id="questionDate" class="date-chip"></span>
+        </div>
+        <h1 id="questionHeading">Loading today’s verdict…</h1>
+        <p id="categoryText" class="category-text"></p>
+
+        <div id="participation" class="participation" hidden>
+          <div class="participation-copy">
+            <strong id="participationCount">0 of 0 votes</strong>
+            <span id="revealMessage">Results appear at 4:00 pm.</span>
+          </div>
+          <div class="progress-track" aria-hidden="true">
+            <span id="participationBar"></span>
+          </div>
+        </div>
+      </section>
+
+      <div id="statusMessage" class="notice" role="status" aria-live="polite" hidden></div>
+
+      <section id="noQuestionPanel" class="panel empty-state" hidden>
+        <div class="empty-icon" aria-hidden="true">?</div>
+        <h2>No question has been scheduled today</h2>
+        <p>Democracy has been postponed. Productivity may briefly recover.</p>
+      </section>
+
+      <section id="votePanel" class="panel" hidden>
+        <div class="section-heading">
+          <div>
+            <span class="step-label">Step 1</span>
+            <h2>Who are you?</h2>
+          </div>
+          <p>Your vote is stored privately. Public results show totals only.</p>
+        </div>
+
+        <div class="identity-grid">
+          <label>
+            <span>Your name</span>
+            <select id="voterSelect">
+              <option value="">Choose your name</option>
+            </select>
+          </label>
+          <label>
+            <span>Your four-digit PIN</span>
+            <input id="pinInput" type="password" inputmode="numeric" maxlength="4" autocomplete="current-password" placeholder="••••">
+          </label>
+        </div>
+
+        <div class="section-heading choice-heading">
+          <div>
+            <span class="step-label">Step 2</span>
+            <h2>Cast your vote</h2>
+          </div>
+          <p>You can change it until results are revealed.</p>
+        </div>
+
+        <div id="peopleGrid" class="people-grid" role="radiogroup" aria-label="Choose a colleague"></div>
+
+        <div class="vote-actions">
+          <div id="selectionSummary" class="selection-summary">Nobody selected yet.</div>
+          <button id="submitVote" class="primary-button" type="button" disabled>Submit vote</button>
+        </div>
+      </section>
+
+      <section id="resultsPanel" class="panel" hidden>
+        <div class="section-heading">
+          <div>
+            <span class="step-label">The verdict</span>
+            <h2>Today’s results</h2>
+          </div>
+          <p id="winnerText"></p>
+        </div>
+        <div id="resultsList" class="results-list"></div>
+      </section>
+    </main>
+
+    <footer>
+      <span>Keep it fun, not personal.</span>
+      <span>Office Verdict</span>
+    </footer>
+  </div>
+</body>
+</html>
