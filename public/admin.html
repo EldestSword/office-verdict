@@ -14,189 +14,130 @@
     <header class="site-header">
       <a class="brand" href="/">
         <span class="brand-mark" aria-hidden="true">✓</span>
-        <span>
-          <strong>Office Verdict</strong>
-          <small>Admin control room</small>
-        </span>
+        <span><strong>Office Verdict</strong><small>Admin control room</small></span>
       </a>
-      <a class="subtle-link" href="/">Back to voting</a>
+      <nav class="header-links"><a class="subtle-link" href="/history.html">History</a><a class="subtle-link" href="/">Back to voting</a></nav>
     </header>
 
     <main>
       <div id="adminNotice" class="notice" role="status" aria-live="polite" hidden></div>
-
       <section id="loginPanel" class="panel login-panel">
-        <span class="step-label">Restricted area</span>
-        <h1>Admin sign-in</h1>
-        <p>Enter the password stored in Netlify. No, “password123” is not a security strategy.</p>
-        <form id="loginForm" class="login-form">
-          <label>
-            <span>Admin password</span>
-            <input id="adminPassword" type="password" autocomplete="current-password" required>
-          </label>
-          <button class="primary-button" type="submit">Open dashboard</button>
-        </form>
+        <span class="step-label">Restricted area</span><h1>Admin sign-in</h1>
+        <p>Enter the password stored in Netlify. No, “password123” remains a terrible strategy.</p>
+        <form id="loginForm" class="login-form"><label><span>Admin password</span><input id="adminPassword" type="password" autocomplete="current-password" required></label><button class="primary-button" type="submit">Open dashboard</button></form>
       </section>
 
       <div id="dashboard" hidden>
-        <section class="summary-grid" aria-label="Dashboard summary">
-          <article class="summary-card">
-            <span>Active people</span>
-            <strong id="summaryPeople">0</strong>
-          </article>
-          <article class="summary-card">
-            <span>Questions</span>
-            <strong id="summaryQuestions">0</strong>
-          </article>
-          <article class="summary-card">
-            <span>Total votes</span>
-            <strong id="summaryVotes">0</strong>
-          </article>
-          <article class="summary-card">
-            <span>Today</span>
-            <strong id="summaryToday">0</strong>
-          </article>
+        <section class="summary-grid summary-grid-six" aria-label="Dashboard summary">
+          <article class="summary-card"><span>Active people</span><strong id="summaryPeople">0</strong></article>
+          <article class="summary-card"><span>Question bank</span><strong id="summaryBank">0</strong></article>
+          <article class="summary-card"><span>Completed rounds</span><strong id="summaryRounds">0</strong></article>
+          <article class="summary-card"><span>Total votes</span><strong id="summaryVotes">0</strong></article>
+          <article class="summary-card"><span>Comments</span><strong id="summaryComments">0</strong></article>
+          <article class="summary-card"><span>Average turnout</span><strong id="summaryTurnout">0%</strong></article>
         </section>
 
         <nav class="admin-tabs" aria-label="Admin sections">
-          <button class="tab-button active" data-tab="questions" type="button">Questions</button>
-          <button class="tab-button" data-tab="people" type="button">People &amp; PINs</button>
+          <button class="tab-button active" data-tab="rounds" type="button">Rounds &amp; bank</button>
+          <button class="tab-button" data-tab="import" type="button">Bulk import</button>
+          <button class="tab-button" data-tab="people" type="button">People</button>
           <button class="tab-button" data-tab="reports" type="button">Reports</button>
+          <button class="tab-button" data-tab="comments" type="button">Comments</button>
         </nav>
 
-        <section id="tab-questions" class="tab-panel">
+        <section id="tab-rounds" class="tab-panel">
           <div class="admin-two-column">
             <article class="panel compact-panel">
-              <div class="section-heading">
-                <div>
-                  <span class="step-label">Schedule</span>
-                  <h2 id="questionFormTitle">Add a question</h2>
-                </div>
+              <div class="section-heading"><div><span class="step-label">Live round</span><h2 id="currentRoundTitle">No round open</h2></div><button id="closeRoundButton" class="danger-button secondary-button" type="button" hidden>Close &amp; reveal</button></div>
+              <p id="currentRoundMeta" class="muted-copy">Launch a question from the bank when the office requires another judgement.</p>
+              <p id="currentParticipation" class="large-stat">0 votes</p>
+              <div><strong>Still to vote</strong><p id="missingVoters" class="muted-copy">No ballot is open.</p></div>
+            </article>
+
+            <article class="panel compact-panel">
+              <div class="section-heading"><div><span class="step-label">Round controls</span><h2>Launch settings</h2></div></div>
+              <div class="stacked-form no-top-margin">
+                <label><span>Voting duration</span><select id="roundDuration"><option value="30">30 minutes</option><option value="60" selected>1 hour</option><option value="120">2 hours</option><option value="240">4 hours</option><option value="manual">Until manually closed</option></select></label>
+                <label><span>Optional scheduled opening</span><input id="scheduleAt" type="datetime-local"></label>
+                <p class="muted-copy">“Launch” starts immediately. “Schedule” uses the date and time above. One live round at a time, because chaos still needs boundaries.</p>
+                <button id="randomQuestionButton" class="secondary-button" type="button">Launch a random queued question</button>
               </div>
-              <form id="questionForm" class="stacked-form">
+            </article>
+          </div>
+
+          <div class="admin-two-column">
+            <article class="panel compact-panel">
+              <div class="section-heading"><div><span class="step-label">Question bank</span><h2 id="questionFormTitle">Add a question</h2></div></div>
+              <form id="questionForm" class="stacked-form no-top-margin">
                 <input id="questionId" type="hidden">
-                <label>
-                  <span>Date</span>
-                  <input id="questionDateInput" type="date" required>
-                </label>
-                <label>
-                  <span>Question</span>
-                  <textarea id="questionTextInput" maxlength="240" rows="4" required placeholder="Who would…?"></textarea>
-                </label>
-                <label>
-                  <span>Category <small>(optional)</small></span>
-                  <input id="questionCategoryInput" type="text" maxlength="50" placeholder="Chaos, wholesome, survival…">
-                </label>
-                <div class="button-row">
-                  <button class="primary-button" type="submit">Save question</button>
-                  <button id="cancelQuestionEdit" class="secondary-button" type="button" hidden>Cancel edit</button>
-                </div>
+                <label><span>Question</span><textarea id="questionTextInput" maxlength="240" rows="4" required placeholder="Who would…?"></textarea></label>
+                <label><span>Category <small>(optional)</small></span><input id="questionCategoryInput" type="text" maxlength="50" placeholder="Chaos, wholesome, survival…"></label>
+                <label><span>Tags <small>(optional, separated by commas)</small></span><input id="questionTagsInput" type="text" placeholder="night out, crisis, trust"></label>
+                <div class="button-row"><button class="primary-button" type="submit">Save to question bank</button><button id="cancelQuestionEdit" class="secondary-button" type="button" hidden>Cancel edit</button></div>
               </form>
             </article>
 
             <article class="panel compact-panel">
-              <div class="section-heading">
-                <div>
-                  <span class="step-label">Today</span>
-                  <h2>Participation</h2>
-                </div>
-              </div>
-              <p id="todayParticipation" class="large-stat">No question today.</p>
-              <div>
-                <strong>Still to vote</strong>
-                <p id="missingVoters" class="muted-copy">Nobody. Suspiciously efficient.</p>
+              <div class="section-heading"><div><span class="step-label">Find questions</span><h2>Filter the bank</h2></div></div>
+              <div class="stacked-form no-top-margin">
+                <label><span>Search</span><input id="questionSearch" type="search" placeholder="Question, category or tag…"></label>
+                <label><span>Status</span><select id="questionStatusFilter"><option value="">All statuses</option><option value="queued">Queued</option><option value="open">Open</option><option value="closed">Closed</option><option value="archived">Archived</option></select></label>
+                <label><span>Category</span><select id="questionCategoryFilter"><option value="">All categories</option></select></label>
               </div>
             </article>
           </div>
 
           <article class="panel compact-panel table-panel">
-            <div class="section-heading">
-              <div>
-                <span class="step-label">Calendar</span>
-                <h2>Scheduled questions</h2>
-              </div>
-            </div>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Question</th>
-                    <th>Votes</th>
-                    <th>Result</th>
-                    <th><span class="sr-only">Actions</span></th>
-                  </tr>
-                </thead>
-                <tbody id="questionsTableBody"></tbody>
-              </table>
+            <div class="section-heading"><div><span class="step-label">Library</span><h2>Questions</h2></div><span id="questionCount" class="date-chip">0 questions</span></div>
+            <div class="table-wrap"><table><thead><tr><th>Status</th><th>Question</th><th>Timing</th><th>Votes</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody id="questionsTableBody"></tbody></table></div>
+          </article>
+        </section>
+
+        <section id="tab-import" class="tab-panel" hidden>
+          <article class="panel compact-panel">
+            <div class="section-heading"><div><span class="step-label">Bulk question bank</span><h2>Import hundreds of questions</h2></div></div>
+            <p class="muted-copy">Paste one question per line, optionally followed by <strong>| category | tags</strong>. You can also upload a CSV with columns named <strong>question</strong>, <strong>category</strong> and <strong>tags</strong>.</p>
+            <div class="stacked-form">
+              <label><span>Upload CSV or text file</span><input id="importFile" type="file" accept=".csv,.txt,text/csv,text/plain"></label>
+              <label><span>Questions</span><textarea id="importText" rows="16" placeholder="Who would survive longest in a zombie apocalypse? | Survival | chaos, apocalypse&#10;Who would you trust to plan a holiday? | Trust | travel"></textarea></label>
+              <div id="importPreview" class="import-preview muted-copy">Nothing ready to import.</div>
+              <div class="button-row"><button id="importButton" class="primary-button" type="button">Import questions</button><button id="clearImportButton" class="secondary-button" type="button">Clear</button></div>
             </div>
           </article>
         </section>
 
         <section id="tab-people" class="tab-panel" hidden>
           <article class="panel compact-panel">
-            <div class="section-heading">
-              <div>
-                <span class="step-label">Access</span>
-                <h2>People and voting PINs</h2>
-              </div>
-              <button id="generatePinsButton" class="secondary-button" type="button">Generate missing PINs</button>
-            </div>
-            <p class="muted-copy">Generated PINs are shown once. Copy them before leaving the page, because the database stores only secure hashes.</p>
-            <div id="generatedPinsPanel" class="generated-pins" hidden>
-              <div class="generated-pins-heading">
-                <strong>New PINs</strong>
-                <button id="copyPinsButton" class="small-button" type="button">Copy list</button>
-              </div>
-              <pre id="generatedPinsText"></pre>
-            </div>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Status</th>
-                    <th>PIN</th>
-                    <th><span class="sr-only">Actions</span></th>
-                  </tr>
-                </thead>
-                <tbody id="peopleTableBody"></tbody>
-              </table>
-            </div>
+            <div class="section-heading"><div><span class="step-label">Voters</span><h2>People</h2></div></div>
+            <p class="muted-copy">People choose their name on first use and the browser remembers them. No PINs, no ceremonial distribution of tiny numbers.</p>
+            <div class="table-wrap"><table><thead><tr><th>Name</th><th>Status</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody id="peopleTableBody"></tbody></table></div>
           </article>
         </section>
 
         <section id="tab-reports" class="tab-panel" hidden>
           <article class="panel compact-panel">
-            <div class="section-heading">
-              <div>
-                <span class="step-label">History</span>
-                <h2>Results report</h2>
-              </div>
-              <button id="exportButton" class="secondary-button" type="button">Download detailed CSV</button>
-            </div>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Question</th>
-                    <th>Winner</th>
-                    <th>Turnout</th>
-                  </tr>
-                </thead>
-                <tbody id="reportsTableBody"></tbody>
-              </table>
-            </div>
+            <div class="section-heading"><div><span class="step-label">Trends</span><h2>Office leaderboard</h2></div><button id="exportButton" class="secondary-button" type="button">Download detailed CSV</button></div>
+            <div class="table-wrap"><table><thead><tr><th>Person</th><th>Wins</th><th>Top-three finishes</th><th>Total votes received</th><th>Average when scoring</th></tr></thead><tbody id="leaderboardTableBody"></tbody></table></div>
+          </article>
+
+          <div class="admin-two-column report-columns">
+            <article class="panel compact-panel"><div class="section-heading"><div><span class="step-label">Categories</span><h2>Category trends</h2></div></div><div class="table-wrap"><table class="compact-table"><thead><tr><th>Category</th><th>Rounds</th><th>Avg turnout</th><th>Comments</th></tr></thead><tbody id="categoryTableBody"></tbody></table></div></article>
+            <article class="panel compact-panel"><div class="section-heading"><div><span class="step-label">Participation</span><h2>Turnout over time</h2></div></div><div id="turnoutChart" class="turnout-chart"></div></article>
+          </div>
+
+          <article class="panel compact-panel table-panel"><div class="section-heading"><div><span class="step-label">Round history</span><h2>Completed rounds</h2></div></div><div class="table-wrap"><table><thead><tr><th>Closed</th><th>Question</th><th>Top result</th><th>Turnout</th><th>Comments</th></tr></thead><tbody id="reportsTableBody"></tbody></table></div></article>
+        </section>
+
+        <section id="tab-comments" class="tab-panel" hidden>
+          <article class="panel compact-panel table-panel">
+            <div class="section-heading"><div><span class="step-label">Moderation</span><h2>Vote comments</h2></div><label class="inline-checkbox"><input id="showHiddenComments" type="checkbox" checked> Show hidden</label></div>
+            <div class="table-wrap"><table><thead><tr><th>Question</th><th>Voter</th><th>Voted for</th><th>Comment</th><th>Status</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody id="commentsTableBody"></tbody></table></div>
           </article>
         </section>
       </div>
     </main>
 
-    <footer>
-      <span>Admin data includes individual votes. Handle accordingly.</span>
-      <button id="logoutButton" class="text-button" type="button" hidden>Sign out</button>
-    </footer>
+    <footer><span>Admin data includes individual votes and comment authors. Handle accordingly.</span><button id="logoutButton" class="text-button" type="button" hidden>Sign out</button></footer>
   </div>
 </body>
 </html>

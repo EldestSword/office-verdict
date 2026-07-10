@@ -1,13 +1,13 @@
 {
   "name": "office-verdict",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
-  "description": "A lightweight daily office voting app hosted on Netlify with Supabase storage.",
+  "description": "A lightweight office voting app with reusable questions, anonymous comments, history and trend reporting.",
   "scripts": {
     "dev": "npx netlify dev",
     "test": "node --test",
-    "check": "node --check public/app.js && node --check public/admin.js"
+    "check": "node --check public/app.js && node --check public/admin.js && node --check public/history.js && node --check netlify/functions/_shared.mjs && node --check netlify/functions/status.mjs && node --check netlify/functions/vote.mjs && node --check netlify/functions/history.mjs && node --check netlify/functions/admin-data.mjs && node --check netlify/functions/admin-question.mjs && node --check netlify/functions/admin-comment.mjs && node --check netlify/functions/admin-person.mjs && node --check netlify/functions/admin-export.mjs"
   },
   "engines": {
     "node": ">=22"

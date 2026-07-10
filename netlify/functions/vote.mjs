@@ -2,12 +2,11 @@ import {
   getSettings,
   getSupabase,
   handleError,
-  isQuestionRevealed,
+  isRoundClosed,
   json,
-  londonDateParts,
+  normaliseComment,
   parseBody,
   validateUuid,
-  verifyPin,
 } from './_shared.mjs';
 
 export async function handler(event) {
@@ -26,18 +25,18 @@ export async function handler(event) {
     }
 
     const supabase = getSupabase();
-    const london = londonDateParts();
+    const settings = await getSettings(supabase);
+    const comment = normaliseComment(body.comment, Number(settings.comment_max_length) || 280);
 
-    const [settings, questionResult, voterResult, selectedResult] = await Promise.all([
-      getSettings(supabase),
+    const [questionResult, voterResult, selectedResult] = await Promise.all([
       supabase
         .from('questions')
-        .select('id, scheduled_date, is_active, is_results_revealed')
+        .select('id, status, voting_opens_at, voting_closes_at, is_active, is_results_revealed')
         .eq('id', questionId)
         .maybeSingle(),
       supabase
         .from('people')
-        .select('id, name, pin_hash, is_active')
+        .select('id, name, is_active')
         .eq('id', voterId)
         .maybeSingle(),
       supabase
@@ -54,21 +53,16 @@ export async function handler(event) {
     const question = questionResult.data;
     const voter = voterResult.data;
     const selected = selectedResult.data;
+    const now = new Date();
 
-    if (!question || !question.is_active || question.scheduled_date !== london.date) {
-      throw Object.assign(new Error('Today’s question is no longer open.'), { statusCode: 409 });
+    if (!question || !question.is_active || question.status !== 'open' || isRoundClosed(question, now)) {
+      throw Object.assign(new Error('This voting round is no longer open.'), { statusCode: 409 });
     }
-    if (isQuestionRevealed(question, settings.results_reveal_time ?? '16:00')) {
-      throw Object.assign(new Error('Voting has closed and the results are now visible.'), { statusCode: 409 });
+    if (question.voting_opens_at && new Date(question.voting_opens_at).getTime() > now.getTime()) {
+      throw Object.assign(new Error('This voting round has not opened yet.'), { statusCode: 409 });
     }
     if (!voter || !voter.is_active) {
       throw Object.assign(new Error('The selected voter is not active.'), { statusCode: 400 });
-    }
-    if (!voter.pin_hash) {
-      throw Object.assign(new Error('No PIN has been set for this voter. Ask the administrator to set one.'), { statusCode: 409 });
-    }
-    if (!verifyPin(body.pin, voter.pin_hash)) {
-      throw Object.assign(new Error('That PIN is incorrect.'), { statusCode: 401 });
     }
     if (!selected || !selected.is_active) {
       throw Object.assign(new Error('The selected colleague is not active.'), { statusCode: 400 });
@@ -80,6 +74,9 @@ export async function handler(event) {
         question_id: questionId,
         voter_id: voterId,
         selected_person_id: selectedPersonId,
+        comment_text: comment,
+        comment_hidden: false,
+        comment_moderated_at: null,
       }, {
         onConflict: 'question_id,voter_id',
       });
