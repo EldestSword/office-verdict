@@ -12,7 +12,7 @@ A small office voting app hosted on Netlify with Supabase storage.
 - public top-three cards and full result history;
 - reusable question bank and random question launcher;
 - bulk import of up to 1,000 questions at once;
-- included starter CSV containing 240 office-safe questions;
+- a separately supplied starter CSV containing 240 office-safe questions;
 - admin comment moderation;
 - leaderboard, category, turnout and round reporting;
 - detailed CSV export;
