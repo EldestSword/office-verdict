@@ -2,6 +2,7 @@ const elements = {
   notice: document.querySelector('#historyNotice'),
   count: document.querySelector('#historyCount'),
   search: document.querySelector('#historySearch'),
+  type: document.querySelector('#historyType'),
   category: document.querySelector('#historyCategory'),
   list: document.querySelector('#historyList'),
 };
@@ -41,24 +42,29 @@ function formatDate(value) {
   }).format(new Date(value));
 }
 
-function renderResultRows(results, totalVotes) {
+function renderResultRows(item) {
   const list = make('div', { className: 'results-list compact-results' });
-  if (!results.length) {
+  if (!item.results.length) {
     list.append(make('p', { className: 'muted-copy', text: 'No votes were cast.' }));
     return list;
   }
 
-  for (const result of results) {
-    const row = make('div', { className: 'result-row' });
-    const name = make('span', { className: 'result-name', text: `${result.rank}. ${result.name}` });
-    const track = make('div', { className: 'result-track' }, [
-      make('span', {
-        className: 'result-bar',
-        attrs: { style: `width:${totalVotes ? Math.max(2, (result.votes / totalVotes) * 100) : 0}%` },
-      }),
-    ]);
-    const count = make('span', { className: 'result-count', text: `${result.votes} ${result.votes === 1 ? 'vote' : 'votes'}` });
-    row.append(name, track, count);
+  for (const result of item.results) {
+    const label = item.questionType === 'would_you_rather'
+      ? `${result.choice}. ${result.label}`
+      : `${result.rank}. ${result.name}`;
+    const percentage = item.votesCast ? (result.votes / item.votesCast) * 100 : 0;
+    const countText = item.questionType === 'would_you_rather'
+      ? `${result.votes} · ${result.percentage}%`
+      : `${result.votes} ${result.votes === 1 ? 'vote' : 'votes'}`;
+    const row = make('div', { className: `result-row${item.questionType === 'would_you_rather' ? ' wyr-result-row' : ''}` });
+    row.append(
+      make('span', { className: 'result-name', text: label }),
+      make('div', { className: 'result-track' }, [
+        make('span', { className: 'result-bar', attrs: { style: `width:${Math.max(result.votes ? 2 : 0, percentage)}%` } }),
+      ]),
+      make('span', { className: 'result-count', text: countText }),
+    );
     list.append(row);
   }
   return list;
@@ -74,30 +80,60 @@ function renderComments(comments) {
 
   const grouped = new Map();
   for (const comment of comments) {
-    const list = grouped.get(comment.selectedPersonName) ?? [];
+    const label = comment.choiceLabel || comment.selectedPersonName || 'Unknown choice';
+    const list = grouped.get(label) ?? [];
     list.push(comment.text);
-    grouped.set(comment.selectedPersonName, list);
+    grouped.set(label, list);
   }
 
-  for (const [name, texts] of grouped.entries()) {
-    const group = make('section', { className: 'comment-group' }, [make('h5', { text: `Comments for ${name}` })]);
+  for (const [label, texts] of grouped.entries()) {
+    const group = make('section', { className: 'comment-group' }, [make('h5', { text: `Comments for ${label}` })]);
     for (const text of texts) group.append(make('blockquote', { text }));
     section.append(group);
   }
   return section;
 }
 
+function makeSummaryResults(item) {
+  const list = make('ol', { className: 'podium-list podium-large' });
+  if (!item.results.length) {
+    list.append(make('li', { className: 'muted-copy', text: 'No votes' }));
+    return list;
+  }
+  if (item.questionType === 'would_you_rather') {
+    for (const result of item.results) {
+      list.append(make('li', {}, [
+        make('span', { text: `${result.choice}. ${result.label}` }),
+        make('strong', { text: `${result.percentage}%` }),
+      ]));
+    }
+    return list;
+  }
+  for (const result of item.topThree) {
+    const medal = result.rank === 1 ? '🥇' : result.rank === 2 ? '🥈' : '🥉';
+    list.append(make('li', {}, [
+      make('span', { text: `${medal} ${result.name}` }),
+      make('strong', { text: `${result.votes}` }),
+    ]));
+  }
+  return list;
+}
+
 function render() {
   const query = elements.search.value.trim().toLowerCase();
+  const type = elements.type.value;
   const category = elements.category.value;
   const filtered = history.filter((item) => {
+    if (type && item.questionType !== type) return false;
     if (category && (item.category || 'Uncategorised') !== category) return false;
     if (!query) return true;
     const haystack = [
       item.text,
+      item.optionA,
+      item.optionB,
       item.category,
       ...(item.tags ?? []),
-      ...item.results.map((result) => result.name),
+      ...item.results.map((result) => result.name || result.label),
       ...item.comments.map((comment) => comment.text),
     ].filter(Boolean).join(' ').toLowerCase();
     return haystack.includes(query);
@@ -116,16 +152,7 @@ function render() {
   }
 
   for (const item of filtered) {
-    const topThree = make('ol', { className: 'podium-list podium-large' });
-    for (const result of item.topThree) {
-      const medal = result.rank === 1 ? '🥇' : result.rank === 2 ? '🥈' : '🥉';
-      topThree.append(make('li', {}, [
-        make('span', { text: `${medal} ${result.name}` }),
-        make('strong', { text: `${result.votes}` }),
-      ]));
-    }
-    if (!item.topThree.length) topThree.append(make('li', { className: 'muted-copy', text: 'No votes' }));
-
+    const typeLabel = item.questionType === 'would_you_rather' ? 'Would You Rather' : 'Most Likely To';
     const details = make('details', {
       className: 'panel history-detail',
       id: item.id,
@@ -134,17 +161,17 @@ function render() {
     const summary = make('summary', {}, [
       make('div', { className: 'history-summary-copy' }, [
         make('div', { className: 'verdict-card-meta' }, [
-          make('span', { className: 'badge', text: item.category || 'Uncategorised' }),
+          make('span', { className: `badge ${item.questionType === 'would_you_rather' ? 'type-badge-wyr' : 'type-badge-people'}`, text: typeLabel }),
           make('span', { className: 'table-muted', text: formatDate(item.closedAt) }),
         ]),
         make('h2', { text: item.text }),
         make('p', { className: 'muted-copy', text: `${item.votesCast} votes · ${item.comments.length} public comments` }),
       ]),
-      topThree,
+      makeSummaryResults(item),
     ]);
     details.append(summary);
     details.append(make('div', { className: 'history-detail-body' }, [
-      renderResultRows(item.results, item.votesCast),
+      renderResultRows(item),
       renderComments(item.comments),
     ]));
     elements.list.append(details);
@@ -170,5 +197,6 @@ async function loadHistory() {
 }
 
 elements.search.addEventListener('input', render);
+elements.type.addEventListener('change', render);
 elements.category.addEventListener('change', render);
 loadHistory();
