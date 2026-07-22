@@ -6,6 +6,7 @@ import {
   requireAdmin,
   resolveOpenQuestion,
 } from './_shared.mjs';
+import { fetchAllRows } from './_pagination.mjs';
 import { buildQuestionResults, choiceLabel, QUESTION_TYPES } from './_question-types.mjs';
 
 function statusOrder(status) {
@@ -156,20 +157,29 @@ export async function handler(event) {
     const supabase = getSupabase();
     await resolveOpenQuestion(supabase, new Date());
 
-    const [settings, peopleResult, questionsResult, votesResult] = await Promise.all([
+    const questionFields = 'id, question_text, question_type, option_a, option_b, category, tags, status, source, is_active, voting_opens_at, voting_closes_at, closed_at, eligible_voters_count, created_at';
+    const voteFields = 'id, question_id, voter_id, selected_person_id, selected_option, comment_text, comment_hidden, comment_moderated_at, created_at, updated_at';
+
+    const [settings, peopleResult, questions, votes] = await Promise.all([
       getSettings(supabase),
-      supabase.from('people').select('id, name, is_active, display_order, created_at').order('display_order', { ascending: true }).order('name', { ascending: true }),
-      supabase.from('questions').select('id, question_text, question_type, option_a, option_b, category, tags, status, source, is_active, voting_opens_at, voting_closes_at, closed_at, eligible_voters_count, created_at'),
-      supabase.from('votes').select('id, question_id, voter_id, selected_person_id, selected_option, comment_text, comment_hidden, comment_moderated_at, created_at, updated_at'),
+      supabase
+        .from('people')
+        .select('id, name, is_active, display_order, created_at')
+        .order('display_order', { ascending: true })
+        .order('name', { ascending: true }),
+      fetchAllRows(() => supabase
+        .from('questions')
+        .select(questionFields)
+        .order('id', { ascending: true })),
+      fetchAllRows(() => supabase
+        .from('votes')
+        .select(voteFields)
+        .order('id', { ascending: true })),
     ]);
 
     if (peopleResult.error) throw peopleResult.error;
-    if (questionsResult.error) throw questionsResult.error;
-    if (votesResult.error) throw votesResult.error;
 
     const people = peopleResult.data ?? [];
-    const questions = questionsResult.data ?? [];
-    const votes = votesResult.data ?? [];
     const reports = buildReports(questions, votes, people);
     const activePeople = people.filter((person) => person.is_active);
     const current = reports.find((report) => report.status === 'open') ?? null;
