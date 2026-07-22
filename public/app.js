@@ -1,6 +1,7 @@
 const elements = {
   appName: document.querySelector('#appName'),
   questionHeading: document.querySelector('#questionHeading'),
+  questionTypeLabel: document.querySelector('#questionTypeLabel'),
   roundStatus: document.querySelector('#roundStatus'),
   categoryText: document.querySelector('#categoryText'),
   participation: document.querySelector('#participation'),
@@ -11,8 +12,12 @@ const elements = {
   noQuestionPanel: document.querySelector('#noQuestionPanel'),
   votePanel: document.querySelector('#votePanel'),
   peopleGrid: document.querySelector('#peopleGrid'),
+  wyrGrid: document.querySelector('#wyrGrid'),
+  ballotHeading: document.querySelector('#ballotHeading'),
+  ballotPrompt: document.querySelector('#ballotPrompt'),
   currentVoterName: document.querySelector('#currentVoterName'),
   changeVoterButton: document.querySelector('#changeVoterButton'),
+  commentLabel: document.querySelector('#commentLabel'),
   commentInput: document.querySelector('#commentInput'),
   commentCount: document.querySelector('#commentCount'),
   selectionSummary: document.querySelector('#selectionSummary'),
@@ -29,6 +34,7 @@ const state = {
   history: [],
   voterId: localStorage.getItem('officeVerdictVoterId') ?? '',
   selectedPersonId: null,
+  selectedOption: null,
   currentQuestionId: null,
   submitting: false,
   hasLoadedVote: false,
@@ -49,6 +55,10 @@ function make(tag, options = {}, children = []) {
   }
   node.append(...children);
   return node;
+}
+
+function isWyr(question = state.data?.question) {
+  return question?.type === 'would_you_rather';
 }
 
 function showNotice(message, type = 'success') {
@@ -106,7 +116,6 @@ function populateIdentity(people) {
     localStorage.removeItem('officeVerdictVoterId');
     elements.currentVoterName.textContent = 'Nobody';
   }
-
   elements.cancelIdentityButton.hidden = !state.voterId;
 }
 
@@ -117,23 +126,18 @@ function openIdentityDialog() {
 function renderPeople() {
   const people = state.data?.people ?? [];
   elements.peopleGrid.replaceChildren();
-
   for (const person of people) {
     const button = make('button', {
       type: 'button',
       className: 'person-button',
       text: person.name,
-      attrs: {
-        role: 'radio',
-        'aria-checked': String(state.selectedPersonId === person.id),
-      },
+      attrs: { role: 'radio', 'aria-checked': String(state.selectedPersonId === person.id) },
       onClick: () => {
         state.selectedPersonId = person.id;
         renderPeople();
         updateVoteActions();
       },
     });
-
     if (person.id === state.voterId) {
       button.disabled = true;
       button.title = 'You cannot vote for yourself.';
@@ -144,16 +148,50 @@ function renderPeople() {
   }
 }
 
+function renderWyr() {
+  const question = state.data?.question;
+  elements.wyrGrid.replaceChildren();
+  const options = [
+    { code: 'A', label: question?.optionA ?? 'Option A' },
+    { code: 'B', label: question?.optionB ?? 'Option B' },
+  ];
+  for (const option of options) {
+    const button = make('button', {
+      type: 'button',
+      className: 'wyr-option',
+      attrs: { role: 'radio', 'aria-checked': String(state.selectedOption === option.code) },
+      onClick: () => {
+        state.selectedOption = option.code;
+        renderWyr();
+        updateVoteActions();
+      },
+    }, [
+      make('span', { className: 'wyr-letter', text: option.code }),
+      make('strong', { text: option.label }),
+    ]);
+    if (state.selectedOption === option.code) button.classList.add('selected');
+    elements.wyrGrid.append(button);
+  }
+}
+
 function updateCommentCount() {
   elements.commentCount.textContent = `${elements.commentInput.value.length} / 280`;
 }
 
+function selectedLabel() {
+  if (isWyr()) {
+    if (state.selectedOption === 'A') return state.data.question.optionA;
+    if (state.selectedOption === 'B') return state.data.question.optionB;
+    return null;
+  }
+  return state.data?.people?.find((person) => person.id === state.selectedPersonId)?.name ?? null;
+}
+
 function updateVoteActions() {
-  const selected = state.data?.people?.find((person) => person.id === state.selectedPersonId);
-  elements.selectionSummary.textContent = selected
-    ? `Selected: ${selected.name}`
-    : 'Nobody selected yet.';
-  elements.submitVote.disabled = !state.voterId || !state.selectedPersonId || state.submitting;
+  const selected = selectedLabel();
+  elements.selectionSummary.textContent = selected ? `Selected: ${selected}` : 'Nothing selected yet.';
+  const hasChoice = isWyr() ? Boolean(state.selectedOption) : Boolean(state.selectedPersonId);
+  elements.submitVote.disabled = !state.voterId || !hasChoice || state.submitting;
   elements.submitVote.textContent = state.submitting ? 'Recording vote…' : 'Submit vote';
   updateCommentCount();
 }
@@ -168,6 +206,31 @@ function renderParticipation(participation) {
   elements.closeMessage.textContent = remainingTime(state.data?.question?.closesAt);
 }
 
+function makeHistoryResults(item) {
+  const list = make('ol', { className: 'podium-list' });
+  if (!item.results.length) {
+    list.append(make('li', { className: 'muted-copy', text: 'No votes were cast.' }));
+    return list;
+  }
+  if (item.questionType === 'would_you_rather') {
+    for (const result of item.results) {
+      list.append(make('li', {}, [
+        make('span', { text: `${result.choice}. ${result.label}` }),
+        make('strong', { text: `${result.percentage}%` }),
+      ]));
+    }
+    return list;
+  }
+  for (const result of item.topThree) {
+    const medal = result.rank === 1 ? '🥇' : result.rank === 2 ? '🥈' : '🥉';
+    list.append(make('li', {}, [
+      make('span', { text: `${medal} ${result.name}` }),
+      make('strong', { text: String(result.votes) }),
+    ]));
+  }
+  return list;
+}
+
 function renderHistory(history) {
   elements.historyPreview.replaceChildren();
   if (!history.length) {
@@ -179,33 +242,17 @@ function renderHistory(history) {
   }
 
   for (const item of history) {
-    const podium = make('ol', { className: 'podium-list' });
-    if (!item.topThree.length) {
-      podium.append(make('li', { className: 'muted-copy', text: 'No votes were cast.' }));
-    } else {
-      for (const result of item.topThree) {
-        const medal = result.rank === 1 ? '🥇' : result.rank === 2 ? '🥈' : '🥉';
-        podium.append(make('li', {}, [
-          make('span', { text: `${medal} ${result.name}` }),
-          make('strong', { text: String(result.votes) }),
-        ]));
-      }
-    }
-
+    const typeLabel = item.questionType === 'would_you_rather' ? 'Would You Rather' : 'Most Likely To';
     const card = make('article', { className: 'verdict-card' }, [
       make('div', { className: 'verdict-card-meta' }, [
-        make('span', { className: 'badge', text: item.category || 'Uncategorised' }),
+        make('span', { className: 'badge', text: typeLabel }),
         make('span', { className: 'table-muted', text: formatClosedDate(item.closedAt) }),
       ]),
       make('h3', { text: item.text }),
-      podium,
+      makeHistoryResults(item),
       make('div', { className: 'verdict-card-footer' }, [
         make('span', { text: `${item.votesCast} votes · ${item.comments.length} comments` }),
-        make('a', {
-          className: 'text-link',
-          text: 'View details',
-          href: `/history.html#${item.id}`,
-        }),
+        make('a', { className: 'text-link', text: 'View details', href: `/history.html#${item.id}` }),
       ]),
     ]);
     elements.historyPreview.append(card);
@@ -222,6 +269,7 @@ function render(data, { quiet = false } = {}) {
 
   if (!data.question) {
     elements.questionHeading.textContent = 'No question is open right now';
+    elements.questionTypeLabel.textContent = 'Current question';
     elements.roundStatus.textContent = 'Waiting for the next one';
     elements.categoryText.textContent = '';
     elements.participation.hidden = true;
@@ -233,6 +281,7 @@ function render(data, { quiet = false } = {}) {
   elements.noQuestionPanel.hidden = true;
   elements.votePanel.hidden = false;
   elements.questionHeading.textContent = data.question.text;
+  elements.questionTypeLabel.textContent = isWyr(data.question) ? 'Would You Rather' : 'Most Likely To';
   elements.roundStatus.textContent = data.question.closesAt
     ? `Closes ${formatDateTime(data.question.closesAt)}`
     : 'Open-ended round';
@@ -242,17 +291,34 @@ function render(data, { quiet = false } = {}) {
 
   if (questionChanged) {
     state.selectedPersonId = null;
+    state.selectedOption = null;
     elements.commentInput.value = '';
     state.hasLoadedVote = false;
   }
 
   if (!state.hasLoadedVote && data.myVote) {
     state.selectedPersonId = data.myVote.selectedPersonId;
+    state.selectedOption = data.myVote.selectedOption;
     elements.commentInput.value = data.myVote.comment ?? '';
     state.hasLoadedVote = true;
   }
 
-  renderPeople();
+  if (isWyr()) {
+    elements.ballotHeading.textContent = 'Choose your fate';
+    elements.ballotPrompt.textContent = 'You must pick one. “Both” and “neither” have been denied entry.';
+    elements.commentLabel.innerHTML = 'Why did you choose it? <small>Optional and shown anonymously after voting closes</small>';
+    elements.peopleGrid.hidden = true;
+    elements.wyrGrid.hidden = false;
+    renderWyr();
+  } else {
+    elements.ballotHeading.textContent = 'Cast your vote';
+    elements.ballotPrompt.textContent = 'Choose the colleague who best fits the question.';
+    elements.commentLabel.innerHTML = 'Why did you choose them? <small>Optional and shown anonymously after voting closes</small>';
+    elements.peopleGrid.hidden = false;
+    elements.wyrGrid.hidden = true;
+    renderPeople();
+  }
+
   updateVoteActions();
   if (!state.voterId && !quiet) openIdentityDialog();
 }
@@ -279,12 +345,10 @@ async function loadData({ quiet = false } = {}) {
 
 async function submitVote() {
   if (!state.data?.question || state.submitting) return;
-  if (!state.voterId) {
-    openIdentityDialog();
-    return;
-  }
-  if (!state.selectedPersonId) {
-    showNotice('Choose a colleague before submitting your vote.', 'warning');
+  if (!state.voterId) { openIdentityDialog(); return; }
+  const hasChoice = isWyr() ? Boolean(state.selectedOption) : Boolean(state.selectedPersonId);
+  if (!hasChoice) {
+    showNotice(isWyr() ? 'Choose one of the two options.' : 'Choose a colleague before submitting your vote.', 'warning');
     return;
   }
 
@@ -299,7 +363,8 @@ async function submitVote() {
       body: JSON.stringify({
         questionId: state.data.question.id,
         voterId: state.voterId,
-        selectedPersonId: state.selectedPersonId,
+        selectedPersonId: isWyr() ? null : state.selectedPersonId,
+        selectedOption: isWyr() ? state.selectedOption : null,
         comment: elements.commentInput.value,
       }),
     });
@@ -322,6 +387,7 @@ elements.identityForm.addEventListener('submit', (event) => {
   if (!voterId) return;
   state.voterId = voterId;
   state.selectedPersonId = null;
+  state.selectedOption = null;
   state.hasLoadedVote = false;
   localStorage.setItem('officeVerdictVoterId', voterId);
   elements.identityDialog.close();
