@@ -27,9 +27,9 @@ export async function handler(event) {
 
     if (peopleResult.error) throw peopleResult.error;
     const people = peopleResult.data ?? [];
-    const question = await resolveOpenQuestion(supabase, now);
+    const resolved = await resolveOpenQuestion(supabase, now);
 
-    if (!question) {
+    if (!resolved) {
       return json(200, {
         ok: true,
         appName: settings.app_name ?? 'Office Verdict',
@@ -39,12 +39,20 @@ export async function handler(event) {
       });
     }
 
+    const questionResult = await supabase
+      .from('questions')
+      .select('id, question_text, question_type, option_a, option_b, category, tags, status, voting_opens_at, voting_closes_at, eligible_voters_count')
+      .eq('id', resolved.id)
+      .maybeSingle();
+    if (questionResult.error) throw questionResult.error;
+    const question = questionResult.data;
+
     const votesResult = await supabase
       .from('votes')
-      .select('voter_id, selected_person_id, comment_text')
+      .select('voter_id, selected_person_id, selected_option, comment_text')
       .eq('question_id', question.id);
-
     if (votesResult.error) throw votesResult.error;
+
     const votes = votesResult.data ?? [];
     const myVote = requestedVoterId
       ? votes.find((vote) => vote.voter_id === requestedVoterId)
@@ -57,6 +65,9 @@ export async function handler(event) {
       question: {
         id: question.id,
         text: question.question_text,
+        type: question.question_type,
+        optionA: question.option_a,
+        optionB: question.option_b,
         category: question.category,
         tags: question.tags ?? [],
         opensAt: question.voting_opens_at,
@@ -69,6 +80,7 @@ export async function handler(event) {
       },
       myVote: myVote ? {
         selectedPersonId: myVote.selected_person_id,
+        selectedOption: myVote.selected_option,
         comment: myVote.comment_text ?? '',
       } : null,
     });

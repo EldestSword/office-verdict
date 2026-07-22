@@ -1,13 +1,13 @@
 {
   "name": "office-verdict",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "private": true,
   "type": "module",
-  "description": "A lightweight office voting app with reusable questions, anonymous comments, history and trend reporting.",
+  "description": "A lightweight office voting app with colleague and Would You Rather rounds.",
   "scripts": {
     "dev": "npx netlify dev",
     "test": "node --test",
-    "check": "node --check public/app.js && node --check public/admin.js && node --check public/history.js && node --check netlify/functions/_shared.mjs && node --check netlify/functions/status.mjs && node --check netlify/functions/vote.mjs && node --check netlify/functions/history.mjs && node --check netlify/functions/admin-data.mjs && node --check netlify/functions/admin-question.mjs && node --check netlify/functions/admin-comment.mjs && node --check netlify/functions/admin-person.mjs && node --check netlify/functions/admin-export.mjs"
+    "check": "node --check public/app.js && node --check public/admin-v3.js && node --check public/admin-import.js && node --check public/history.js && node --check netlify/functions/_shared.mjs && node --check netlify/functions/_question-types.mjs && node --check netlify/functions/status.mjs && node --check netlify/functions/vote.mjs && node --check netlify/functions/history.mjs && node --check netlify/functions/admin-data.mjs && node --check netlify/functions/admin-question.mjs && node --check netlify/functions/admin-comment.mjs && node --check netlify/functions/admin-person.mjs && node --check netlify/functions/admin-export.mjs"
   },
   "engines": {
     "node": ">=22"

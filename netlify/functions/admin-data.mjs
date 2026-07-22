@@ -1,5 +1,4 @@
 import {
-  buildRankedResults,
   getSettings,
   getSupabase,
   handleError,
@@ -7,6 +6,7 @@ import {
   requireAdmin,
   resolveOpenQuestion,
 } from './_shared.mjs';
+import { buildQuestionResults, choiceLabel, QUESTION_TYPES } from './_question-types.mjs';
 
 function statusOrder(status) {
   return { open: 0, queued: 1, closed: 2, archived: 3 }[status] ?? 9;
@@ -22,10 +22,13 @@ function buildReports(questions, votes, people) {
 
   return questions.map((question) => {
     const questionVotes = votesByQuestion.get(question.id) ?? [];
-    const results = buildRankedResults(questionVotes, people);
+    const results = buildQuestionResults(question, questionVotes, people);
     return {
       id: question.id,
       text: question.question_text,
+      questionType: question.question_type,
+      optionA: question.option_a,
+      optionB: question.option_b,
       category: question.category,
       tags: question.tags ?? [],
       status: question.status,
@@ -40,15 +43,15 @@ function buildReports(questions, votes, people) {
       commentsCount: questionVotes.filter((vote) => vote.comment_text).length,
       visibleCommentsCount: questionVotes.filter((vote) => vote.comment_text && !vote.comment_hidden).length,
       results,
-      topThree: results.filter((row) => row.rank <= 3),
+      topThree: question.question_type === QUESTION_TYPES.PEOPLE
+        ? results.filter((row) => row.rank <= 3)
+        : results,
       voterIds: questionVotes.map((vote) => vote.voter_id),
     };
   }).sort((a, b) => {
     const statusDifference = statusOrder(a.status) - statusOrder(b.status);
     if (statusDifference) return statusDifference;
-    const aTime = a.openedAt ?? a.createdAt ?? '';
-    const bTime = b.openedAt ?? b.createdAt ?? '';
-    return bTime.localeCompare(aTime);
+    return String(b.openedAt ?? b.createdAt ?? '').localeCompare(String(a.openedAt ?? a.createdAt ?? ''));
   });
 }
 
@@ -62,7 +65,7 @@ function buildLeaderboard(reports, people) {
     roundsScoring: 0,
   }]));
 
-  for (const report of reports.filter((item) => item.status === 'closed')) {
+  for (const report of reports.filter((item) => item.status === 'closed' && item.questionType === QUESTION_TYPES.PEOPLE)) {
     for (const result of report.results) {
       const row = rows.get(result.personId);
       if (!row) continue;
@@ -93,11 +96,15 @@ function buildCategoryTrends(reports, activePeopleCount) {
     const row = categories.get(name) ?? {
       category: name,
       rounds: 0,
+      peopleRounds: 0,
+      wyrRounds: 0,
       votes: 0,
       comments: 0,
       turnoutTotal: 0,
     };
     row.rounds += 1;
+    if (report.questionType === QUESTION_TYPES.WOULD_YOU_RATHER) row.wyrRounds += 1;
+    else row.peopleRounds += 1;
     row.votes += report.votesCast;
     row.comments += report.commentsCount;
     const eligible = report.eligibleVoters || activePeopleCount;
@@ -114,6 +121,35 @@ function buildCategoryTrends(reports, activePeopleCount) {
     .sort((a, b) => b.rounds - a.rounds || b.votes - a.votes || a.category.localeCompare(b.category));
 }
 
+function buildWyrTrends(reports) {
+  const rounds = reports.filter((item) => item.status === 'closed' && item.questionType === QUESTION_TYPES.WOULD_YOU_RATHER);
+  let optionAVotes = 0;
+  let optionBVotes = 0;
+  const margins = [];
+
+  for (const report of rounds) {
+    const a = report.results.find((row) => row.choice === 'A')?.votes ?? 0;
+    const b = report.results.find((row) => row.choice === 'B')?.votes ?? 0;
+    optionAVotes += a;
+    optionBVotes += b;
+    if (a + b) margins.push({
+      questionId: report.id,
+      question: report.text,
+      margin: Math.abs(a - b),
+      votes: a + b,
+      split: `${Math.round((a / (a + b)) * 100)} / ${Math.round((b / (a + b)) * 100)}`,
+    });
+  }
+
+  margins.sort((a, b) => a.margin - b.margin || b.votes - a.votes);
+  return {
+    completedRounds: rounds.length,
+    optionAVotes,
+    optionBVotes,
+    closestRounds: margins.slice(0, 5),
+  };
+}
+
 export async function handler(event) {
   try {
     requireAdmin(event);
@@ -122,17 +158,9 @@ export async function handler(event) {
 
     const [settings, peopleResult, questionsResult, votesResult] = await Promise.all([
       getSettings(supabase),
-      supabase
-        .from('people')
-        .select('id, name, is_active, display_order, created_at')
-        .order('display_order', { ascending: true })
-        .order('name', { ascending: true }),
-      supabase
-        .from('questions')
-        .select('id, question_text, category, tags, status, source, is_active, voting_opens_at, voting_closes_at, closed_at, eligible_voters_count, created_at'),
-      supabase
-        .from('votes')
-        .select('id, question_id, voter_id, selected_person_id, comment_text, comment_hidden, comment_moderated_at, created_at, updated_at'),
+      supabase.from('people').select('id, name, is_active, display_order, created_at').order('display_order', { ascending: true }).order('name', { ascending: true }),
+      supabase.from('questions').select('id, question_text, question_type, option_a, option_b, category, tags, status, source, is_active, voting_opens_at, voting_closes_at, closed_at, eligible_voters_count, created_at'),
+      supabase.from('votes').select('id, question_id, voter_id, selected_person_id, selected_option, comment_text, comment_hidden, comment_moderated_at, created_at, updated_at'),
     ]);
 
     if (peopleResult.error) throw peopleResult.error;
@@ -158,23 +186,28 @@ export async function handler(event) {
     const questionById = new Map(questions.map((question) => [question.id, question]));
     const comments = votes
       .filter((vote) => vote.comment_text)
-      .map((vote) => ({
-        voteId: vote.id,
-        questionId: vote.question_id,
-        question: questionById.get(vote.question_id)?.question_text ?? 'Unknown question',
-        voter: peopleById.get(vote.voter_id) ?? 'Unknown',
-        selectedPerson: peopleById.get(vote.selected_person_id) ?? 'Unknown',
-        text: vote.comment_text,
-        hidden: vote.comment_hidden,
-        createdAt: vote.created_at,
-        updatedAt: vote.updated_at,
-      }))
+      .map((vote) => {
+        const question = questionById.get(vote.question_id);
+        return {
+          voteId: vote.id,
+          questionId: vote.question_id,
+          question: question?.question_text ?? 'Unknown question',
+          questionType: question?.question_type ?? QUESTION_TYPES.PEOPLE,
+          voter: peopleById.get(vote.voter_id) ?? 'Unknown',
+          selectedPerson: choiceLabel(question, vote, peopleById),
+          text: vote.comment_text,
+          hidden: vote.comment_hidden,
+          createdAt: vote.created_at,
+          updatedAt: vote.updated_at,
+        };
+      })
       .sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
 
     return json(200, {
       ok: true,
       appName: settings.app_name ?? 'Office Verdict',
       defaultRoundMinutes: Number(settings.default_round_minutes) || 60,
+      wyrRandomWeight: Number(settings.wyr_random_weight) || 70,
       people,
       questions: reports,
       comments,
@@ -182,6 +215,8 @@ export async function handler(event) {
       summary: {
         activePeople: activePeople.length,
         bankQuestions: reports.filter((report) => report.status === 'queued').length,
+        queuedPeopleQuestions: reports.filter((report) => report.status === 'queued' && report.questionType === QUESTION_TYPES.PEOPLE).length,
+        queuedWyrQuestions: reports.filter((report) => report.status === 'queued' && report.questionType === QUESTION_TYPES.WOULD_YOU_RATHER).length,
         completedRounds: closedReports.length,
         totalQuestions: questions.length,
         totalVotes: votes.length,
@@ -195,12 +230,14 @@ export async function handler(event) {
       trends: {
         leaderboard: buildLeaderboard(reports, people),
         categories: buildCategoryTrends(reports, activePeople.length),
+        wouldYouRather: buildWyrTrends(reports),
         turnout: closedReports
           .slice()
           .sort((a, b) => String(a.closedAt ?? a.createdAt).localeCompare(String(b.closedAt ?? b.createdAt)))
           .map((report) => ({
             questionId: report.id,
             question: report.text,
+            questionType: report.questionType,
             closedAt: report.closedAt,
             votes: report.votesCast,
             turnout: (report.eligibleVoters || activePeople.length)
