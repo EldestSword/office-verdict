@@ -43,11 +43,12 @@ export function buildQuestionResults(question, votes, people) {
       { choice: 'A', label: question.option_a ?? 'Option A', votes: counts.A },
       { choice: 'B', label: question.option_b ?? 'Option B', votes: counts.B },
     ].sort((a, b) => b.votes - a.votes || a.choice.localeCompare(b.choice));
+    const tied = rows[0].votes === rows[1].votes;
     return rows.map((row, index) => ({
       ...row,
       name: row.label,
       percentage: total ? Number(((row.votes / total) * 100).toFixed(1)) : 0,
-      rank: index > 0 && row.votes === rows[index - 1].votes ? rows[index - 1].rank : index + 1,
+      rank: tied ? 1 : index + 1,
     }));
   }
 
