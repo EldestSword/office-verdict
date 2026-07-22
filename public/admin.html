@@ -8,7 +8,7 @@
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/wyr.css">
-  <script src="/admin.js" type="module"></script>
+  <script src="/admin-v3.js" type="module"></script>
 </head>
 <body>
   <div class="page-shell admin-shell">
@@ -100,7 +100,7 @@
         <section id="tab-import" class="tab-panel" hidden>
           <article class="panel compact-panel">
             <div class="section-heading"><div><span class="step-label">Bulk question bank</span><h2>Import hundreds of questions</h2></div></div>
-            <p class="muted-copy">CSV columns: <strong>question_type, question, option_a, option_b, category, tags</strong>. Existing three-column Most Likely To CSVs remain supported. The importer now handles UTF-8 BOMs and quoted commas properly, because we have suffered enough.</p>
+            <p class="muted-copy">CSV columns: <strong>question_type, question, option_a, option_b, category, tags</strong>. Existing three-column Most Likely To CSVs remain supported. The importer handles UTF-8 BOMs and quoted commas properly.</p>
             <div class="stacked-form">
               <label><span>Upload CSV or text file</span><input id="importFile" type="file" accept=".csv,.txt,text/csv,text/plain"></label>
               <label><span>Questions</span><textarea id="importText" rows="16" placeholder="would_you_rather,Would you rather…?,Option A,Option B,Dark,adult;difficult"></textarea></label>
