@@ -10,6 +10,7 @@ import {
   validateQuestionText,
   validateUuid,
 } from './_shared.mjs';
+import { questionPayload } from './_question-types.mjs';
 
 function durationToCloseTime(durationMinutes, opensAt = new Date()) {
   if (durationMinutes === null || durationMinutes === '' || durationMinutes === undefined) return null;
@@ -31,19 +32,19 @@ function validateIsoDate(value, label) {
 async function closeOpenRounds(supabase, nowIso) {
   const result = await supabase
     .from('questions')
-    .update({
-      status: 'closed',
-      closed_at: nowIso,
-      is_results_revealed: true,
-    })
+    .update({ status: 'closed', closed_at: nowIso, is_results_revealed: true })
     .eq('status', 'open');
   if (result.error) throw result.error;
 }
 
+function duplicateKey(row) {
+  return [row.question_type, row.question_text, row.option_a ?? '', row.option_b ?? '']
+    .map((value) => String(value).trim().toLowerCase())
+    .join('|');
+}
+
 export async function handler(event) {
-  if (event.httpMethod !== 'POST') {
-    return json(405, { ok: false, error: 'Method not allowed.' });
-  }
+  if (event.httpMethod !== 'POST') return json(405, { ok: false, error: 'Method not allowed.' });
 
   try {
     requireAdmin(event);
@@ -52,8 +53,10 @@ export async function handler(event) {
     const supabase = getSupabase();
 
     if (action === 'save') {
+      const typeFields = questionPayload(body);
       const payload = {
         question_text: validateQuestionText(body.text),
+        ...typeFields,
         category: normaliseCategory(body.category),
         tags: normaliseTags(body.tags),
         is_active: body.active !== false,
@@ -66,46 +69,39 @@ export async function handler(event) {
         return json(200, { ok: true, message: 'Question updated.' });
       }
 
-      const { error } = await supabase.from('questions').insert({
-        ...payload,
-        status: 'queued',
-        source: 'manual',
-      });
+      const { error } = await supabase.from('questions').insert({ ...payload, status: 'queued', source: 'manual' });
       if (error) throw error;
       return json(200, { ok: true, message: 'Question added to the bank.' });
     }
 
     if (action === 'bulkImport') {
       const items = Array.isArray(body.items) ? body.items : [];
-      if (!items.length) {
-        throw Object.assign(new Error('No questions were supplied.'), { statusCode: 400 });
-      }
-      if (items.length > 1000) {
-        throw Object.assign(new Error('Import up to 1,000 questions at a time.'), { statusCode: 400 });
-      }
+      if (!items.length) throw Object.assign(new Error('No questions were supplied.'), { statusCode: 400 });
+      if (items.length > 1000) throw Object.assign(new Error('Import up to 1,000 questions at a time.'), { statusCode: 400 });
 
-      const existingResult = await supabase.from('questions').select('question_text');
+      const existingResult = await supabase
+        .from('questions')
+        .select('question_type, question_text, option_a, option_b');
       if (existingResult.error) throw existingResult.error;
-      const seen = new Set((existingResult.data ?? []).map((row) => row.question_text.trim().toLowerCase()));
+      const seen = new Set((existingResult.data ?? []).map(duplicateKey));
       const rows = [];
       let skipped = 0;
 
       for (const item of items) {
-        const text = validateQuestionText(item.text);
-        const key = text.toLowerCase();
-        if (seen.has(key)) {
-          skipped += 1;
-          continue;
-        }
-        seen.add(key);
-        rows.push({
-          question_text: text,
+        const typeFields = questionPayload(item);
+        const row = {
+          question_text: validateQuestionText(item.text ?? item.question),
+          ...typeFields,
           category: normaliseCategory(item.category),
           tags: normaliseTags(item.tags),
           status: 'queued',
           source: 'bulk',
           is_active: true,
-        });
+        };
+        const key = duplicateKey(row);
+        if (seen.has(key)) { skipped += 1; continue; }
+        seen.add(key);
+        rows.push(row);
       }
 
       for (let index = 0; index < rows.length; index += 200) {
@@ -128,10 +124,7 @@ export async function handler(event) {
       const nowIso = now.toISOString();
       const closesAt = durationToCloseTime(body.durationMinutes, now);
       await closeOpenRounds(supabase, nowIso);
-      const activePeopleResult = await supabase
-        .from('people')
-        .select('id', { count: 'exact', head: true })
-        .eq('is_active', true);
+      const activePeopleResult = await supabase.from('people').select('id', { count: 'exact', head: true }).eq('is_active', true);
       if (activePeopleResult.error) throw activePeopleResult.error;
 
       const { data, error } = await supabase
@@ -158,29 +151,26 @@ export async function handler(event) {
     if (action === 'schedule') {
       const opensAt = validateIsoDate(body.opensAt, 'Opening time');
       const closesAt = durationToCloseTime(body.durationMinutes, opensAt);
-      const { error } = await supabase
-        .from('questions')
-        .update({
-          status: 'queued',
-          voting_opens_at: opensAt.toISOString(),
-          voting_closes_at: closesAt,
-          results_reveal_at: closesAt,
-          scheduled_date: londonDateParts(opensAt).date,
-          closed_at: null,
-          is_results_revealed: false,
-          is_active: true,
-        })
-        .eq('id', id);
+      const { error } = await supabase.from('questions').update({
+        status: 'queued',
+        voting_opens_at: opensAt.toISOString(),
+        voting_closes_at: closesAt,
+        results_reveal_at: closesAt,
+        scheduled_date: londonDateParts(opensAt).date,
+        closed_at: null,
+        is_results_revealed: false,
+        is_active: true,
+      }).eq('id', id);
       if (error) throw error;
       return json(200, { ok: true, message: 'Question scheduled.' });
     }
 
     if (action === 'close') {
-      const nowIso = new Date().toISOString();
-      const { error } = await supabase
-        .from('questions')
-        .update({ status: 'closed', closed_at: nowIso, is_results_revealed: true })
-        .eq('id', id);
+      const { error } = await supabase.from('questions').update({
+        status: 'closed',
+        closed_at: new Date().toISOString(),
+        is_results_revealed: true,
+      }).eq('id', id);
       if (error) throw error;
       return json(200, { ok: true, message: 'Voting closed and results revealed.' });
     }
@@ -188,15 +178,13 @@ export async function handler(event) {
     if (action === 'duplicate') {
       const sourceResult = await supabase
         .from('questions')
-        .select('question_text, category, tags')
+        .select('question_text, question_type, option_a, option_b, category, tags')
         .eq('id', id)
         .maybeSingle();
       if (sourceResult.error) throw sourceResult.error;
       if (!sourceResult.data) throw Object.assign(new Error('Question not found.'), { statusCode: 404 });
       const { error } = await supabase.from('questions').insert({
-        question_text: sourceResult.data.question_text,
-        category: sourceResult.data.category,
-        tags: sourceResult.data.tags ?? [],
+        ...sourceResult.data,
         status: 'queued',
         source: 'reused',
         is_active: true,
@@ -206,19 +194,13 @@ export async function handler(event) {
     }
 
     if (action === 'restore') {
-      const { error } = await supabase
-        .from('questions')
-        .update({ status: 'queued', is_active: true })
-        .eq('id', id);
+      const { error } = await supabase.from('questions').update({ status: 'queued', is_active: true }).eq('id', id);
       if (error) throw error;
       return json(200, { ok: true, message: 'Question restored to the bank.' });
     }
 
     if (action === 'archive') {
-      const { error } = await supabase
-        .from('questions')
-        .update({ status: 'archived', is_active: false })
-        .eq('id', id);
+      const { error } = await supabase.from('questions').update({ status: 'archived', is_active: false }).eq('id', id);
       if (error) throw error;
       return json(200, { ok: true, message: 'Question archived.' });
     }
