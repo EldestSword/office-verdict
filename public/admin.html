@@ -7,15 +7,13 @@
   <title>Office Verdict Admin</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/wyr.css">
   <script src="/admin.js" type="module"></script>
 </head>
 <body>
   <div class="page-shell admin-shell">
     <header class="site-header">
-      <a class="brand" href="/">
-        <span class="brand-mark" aria-hidden="true">✓</span>
-        <span><strong>Office Verdict</strong><small>Admin control room</small></span>
-      </a>
+      <a class="brand" href="/"><span class="brand-mark" aria-hidden="true">✓</span><span><strong>Office Verdict</strong><small>Admin control room</small></span></a>
       <nav class="header-links"><a class="subtle-link" href="/history.html">History</a><a class="subtle-link" href="/">Back to voting</a></nav>
     </header>
 
@@ -31,9 +29,9 @@
         <section class="summary-grid summary-grid-six" aria-label="Dashboard summary">
           <article class="summary-card"><span>Active people</span><strong id="summaryPeople">0</strong></article>
           <article class="summary-card"><span>Question bank</span><strong id="summaryBank">0</strong></article>
+          <article class="summary-card"><span>WYR queued</span><strong id="summaryWyr">0</strong></article>
           <article class="summary-card"><span>Completed rounds</span><strong id="summaryRounds">0</strong></article>
           <article class="summary-card"><span>Total votes</span><strong id="summaryVotes">0</strong></article>
-          <article class="summary-card"><span>Comments</span><strong id="summaryComments">0</strong></article>
           <article class="summary-card"><span>Average turnout</span><strong id="summaryTurnout">0%</strong></article>
         </section>
 
@@ -59,8 +57,8 @@
               <div class="stacked-form no-top-margin">
                 <label><span>Voting duration</span><select id="roundDuration"><option value="30">30 minutes</option><option value="60" selected>1 hour</option><option value="120">2 hours</option><option value="240">4 hours</option><option value="manual">Until manually closed</option></select></label>
                 <label><span>Optional scheduled opening</span><input id="scheduleAt" type="datetime-local"></label>
-                <p class="muted-copy">“Launch” starts immediately. “Schedule” uses the date and time above. One live round at a time, because chaos still needs boundaries.</p>
-                <button id="randomQuestionButton" class="secondary-button" type="button">Launch a random queued question</button>
+                <p class="muted-copy">Random launch favours Would You Rather at the configured weighting. One live round at a time.</p>
+                <button id="randomQuestionButton" class="secondary-button" type="button">Launch a weighted random question</button>
               </div>
             </article>
           </div>
@@ -70,9 +68,14 @@
               <div class="section-heading"><div><span class="step-label">Question bank</span><h2 id="questionFormTitle">Add a question</h2></div></div>
               <form id="questionForm" class="stacked-form no-top-margin">
                 <input id="questionId" type="hidden">
-                <label><span>Question</span><textarea id="questionTextInput" maxlength="240" rows="4" required placeholder="Who would…?"></textarea></label>
-                <label><span>Category <small>(optional)</small></span><input id="questionCategoryInput" type="text" maxlength="50" placeholder="Chaos, wholesome, survival…"></label>
-                <label><span>Tags <small>(optional, separated by commas)</small></span><input id="questionTagsInput" type="text" placeholder="night out, crisis, trust"></label>
+                <label><span>Question type</span><select id="questionTypeInput"><option value="people_vote">Most Likely To</option><option value="would_you_rather">Would You Rather</option></select></label>
+                <label><span>Question</span><textarea id="questionTextInput" maxlength="240" rows="4" required placeholder="Who would…? or Would you rather…?"></textarea></label>
+                <div id="wyrFields" class="question-type-fields" hidden>
+                  <label><span>Option A</span><textarea id="optionAInput" maxlength="180" rows="2" placeholder="First choice"></textarea></label>
+                  <label><span>Option B</span><textarea id="optionBInput" maxlength="180" rows="2" placeholder="Second choice"></textarea></label>
+                </div>
+                <label><span>Category <small>(optional)</small></span><input id="questionCategoryInput" type="text" maxlength="50" placeholder="Dark, money, relationships…"></label>
+                <label><span>Tags <small>(optional, separated by commas)</small></span><input id="questionTagsInput" type="text" placeholder="adult, difficult, absurd"></label>
                 <div class="button-row"><button class="primary-button" type="submit">Save to question bank</button><button id="cancelQuestionEdit" class="secondary-button" type="button" hidden>Cancel edit</button></div>
               </form>
             </article>
@@ -80,7 +83,8 @@
             <article class="panel compact-panel">
               <div class="section-heading"><div><span class="step-label">Find questions</span><h2>Filter the bank</h2></div></div>
               <div class="stacked-form no-top-margin">
-                <label><span>Search</span><input id="questionSearch" type="search" placeholder="Question, category or tag…"></label>
+                <label><span>Search</span><input id="questionSearch" type="search" placeholder="Question, option, category or tag…"></label>
+                <label><span>Type</span><select id="questionTypeFilter"><option value="">All types</option><option value="people_vote">Most Likely To</option><option value="would_you_rather">Would You Rather</option></select></label>
                 <label><span>Status</span><select id="questionStatusFilter"><option value="">All statuses</option><option value="queued">Queued</option><option value="open">Open</option><option value="closed">Closed</option><option value="archived">Archived</option></select></label>
                 <label><span>Category</span><select id="questionCategoryFilter"><option value="">All categories</option></select></label>
               </div>
@@ -89,17 +93,17 @@
 
           <article class="panel compact-panel table-panel">
             <div class="section-heading"><div><span class="step-label">Library</span><h2>Questions</h2></div><span id="questionCount" class="date-chip">0 questions</span></div>
-            <div class="table-wrap"><table><thead><tr><th>Status</th><th>Question</th><th>Timing</th><th>Votes</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody id="questionsTableBody"></tbody></table></div>
+            <div class="table-wrap"><table><thead><tr><th>Status</th><th>Type</th><th>Question</th><th>Timing</th><th>Votes</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody id="questionsTableBody"></tbody></table></div>
           </article>
         </section>
 
         <section id="tab-import" class="tab-panel" hidden>
           <article class="panel compact-panel">
             <div class="section-heading"><div><span class="step-label">Bulk question bank</span><h2>Import hundreds of questions</h2></div></div>
-            <p class="muted-copy">Paste one question per line, optionally followed by <strong>| category | tags</strong>. You can also upload a CSV with columns named <strong>question</strong>, <strong>category</strong> and <strong>tags</strong>.</p>
+            <p class="muted-copy">CSV columns: <strong>question_type, question, option_a, option_b, category, tags</strong>. Existing three-column Most Likely To CSVs remain supported. The importer now handles UTF-8 BOMs and quoted commas properly, because we have suffered enough.</p>
             <div class="stacked-form">
               <label><span>Upload CSV or text file</span><input id="importFile" type="file" accept=".csv,.txt,text/csv,text/plain"></label>
-              <label><span>Questions</span><textarea id="importText" rows="16" placeholder="Who would survive longest in a zombie apocalypse? | Survival | chaos, apocalypse&#10;Who would you trust to plan a holiday? | Trust | travel"></textarea></label>
+              <label><span>Questions</span><textarea id="importText" rows="16" placeholder="would_you_rather,Would you rather…?,Option A,Option B,Dark,adult;difficult"></textarea></label>
               <div id="importPreview" class="import-preview muted-copy">Nothing ready to import.</div>
               <div class="button-row"><button id="importButton" class="primary-button" type="button">Import questions</button><button id="clearImportButton" class="secondary-button" type="button">Clear</button></div>
             </div>
@@ -107,32 +111,25 @@
         </section>
 
         <section id="tab-people" class="tab-panel" hidden>
-          <article class="panel compact-panel">
-            <div class="section-heading"><div><span class="step-label">Voters</span><h2>People</h2></div></div>
-            <p class="muted-copy">People choose their name on first use and the browser remembers them. No PINs, no ceremonial distribution of tiny numbers.</p>
-            <div class="table-wrap"><table><thead><tr><th>Name</th><th>Status</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody id="peopleTableBody"></tbody></table></div>
-          </article>
+          <article class="panel compact-panel"><div class="section-heading"><div><span class="step-label">Voters</span><h2>People</h2></div></div><p class="muted-copy">People choose their name on first use and the browser remembers them.</p><div class="table-wrap"><table><thead><tr><th>Name</th><th>Status</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody id="peopleTableBody"></tbody></table></div></article>
         </section>
 
         <section id="tab-reports" class="tab-panel" hidden>
           <article class="panel compact-panel">
-            <div class="section-heading"><div><span class="step-label">Trends</span><h2>Office leaderboard</h2></div><button id="exportButton" class="secondary-button" type="button">Download detailed CSV</button></div>
-            <div class="table-wrap"><table><thead><tr><th>Person</th><th>Wins</th><th>Top-three finishes</th><th>Total votes received</th><th>Average when scoring</th></tr></thead><tbody id="leaderboardTableBody"></tbody></table></div>
+            <div class="section-heading"><div><span class="step-label">Would You Rather</span><h2>Choice trends</h2></div><button id="exportButton" class="secondary-button" type="button">Download detailed CSV</button></div>
+            <div class="wyr-stat-grid"><div class="wyr-stat"><span>Completed WYR rounds</span><strong id="wyrRoundsStat">0</strong></div><div class="wyr-stat"><span>Option A votes</span><strong id="wyrAStat">0</strong></div><div class="wyr-stat"><span>Option B votes</span><strong id="wyrBStat">0</strong></div></div>
+            <div class="table-wrap"><table><thead><tr><th>Closest WYR question</th><th>Split</th><th>Votes</th></tr></thead><tbody id="wyrClosestTableBody"></tbody></table></div>
           </article>
-
+          <article class="panel compact-panel"><div class="section-heading"><div><span class="step-label">Most Likely To</span><h2>Office leaderboard</h2></div></div><div class="table-wrap"><table><thead><tr><th>Person</th><th>Wins</th><th>Top-three finishes</th><th>Total votes received</th><th>Average when scoring</th></tr></thead><tbody id="leaderboardTableBody"></tbody></table></div></article>
           <div class="admin-two-column report-columns">
-            <article class="panel compact-panel"><div class="section-heading"><div><span class="step-label">Categories</span><h2>Category trends</h2></div></div><div class="table-wrap"><table class="compact-table"><thead><tr><th>Category</th><th>Rounds</th><th>Avg turnout</th><th>Comments</th></tr></thead><tbody id="categoryTableBody"></tbody></table></div></article>
+            <article class="panel compact-panel"><div class="section-heading"><div><span class="step-label">Categories</span><h2>Category trends</h2></div></div><div class="table-wrap"><table class="compact-table"><thead><tr><th>Category</th><th>Rounds</th><th>WYR</th><th>Avg turnout</th><th>Comments</th></tr></thead><tbody id="categoryTableBody"></tbody></table></div></article>
             <article class="panel compact-panel"><div class="section-heading"><div><span class="step-label">Participation</span><h2>Turnout over time</h2></div></div><div id="turnoutChart" class="turnout-chart"></div></article>
           </div>
-
-          <article class="panel compact-panel table-panel"><div class="section-heading"><div><span class="step-label">Round history</span><h2>Completed rounds</h2></div></div><div class="table-wrap"><table><thead><tr><th>Closed</th><th>Question</th><th>Top result</th><th>Turnout</th><th>Comments</th></tr></thead><tbody id="reportsTableBody"></tbody></table></div></article>
+          <article class="panel compact-panel table-panel"><div class="section-heading"><div><span class="step-label">Round history</span><h2>Completed rounds</h2></div></div><div class="table-wrap"><table><thead><tr><th>Closed</th><th>Type</th><th>Question</th><th>Top result</th><th>Turnout</th><th>Comments</th></tr></thead><tbody id="reportsTableBody"></tbody></table></div></article>
         </section>
 
         <section id="tab-comments" class="tab-panel" hidden>
-          <article class="panel compact-panel table-panel">
-            <div class="section-heading"><div><span class="step-label">Moderation</span><h2>Vote comments</h2></div><label class="inline-checkbox"><input id="showHiddenComments" type="checkbox" checked> Show hidden</label></div>
-            <div class="table-wrap"><table><thead><tr><th>Question</th><th>Voter</th><th>Voted for</th><th>Comment</th><th>Status</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody id="commentsTableBody"></tbody></table></div>
-          </article>
+          <article class="panel compact-panel table-panel"><div class="section-heading"><div><span class="step-label">Moderation</span><h2>Vote comments</h2></div><label class="inline-checkbox"><input id="showHiddenComments" type="checkbox" checked> Show hidden</label></div><div class="table-wrap"><table><thead><tr><th>Question</th><th>Voter</th><th>Voted for</th><th>Comment</th><th>Status</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody id="commentsTableBody"></tbody></table></div></article>
         </section>
       </div>
     </main>
