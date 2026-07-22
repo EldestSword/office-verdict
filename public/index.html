@@ -7,6 +7,7 @@
   <title>Office Verdict</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/wyr.css">
   <script src="/app.js" type="module"></script>
 </head>
 <body>
@@ -28,7 +29,7 @@
     <main>
       <section class="hero-card" aria-labelledby="questionHeading">
         <div class="eyebrow-row">
-          <span class="eyebrow">Current question</span>
+          <span id="questionTypeLabel" class="eyebrow">Current question</span>
           <span id="roundStatus" class="date-chip">Loading…</span>
         </div>
         <h1 id="questionHeading">Loading the current verdict…</h1>
@@ -57,7 +58,7 @@
         <div class="section-heading">
           <div>
             <span class="step-label">Your ballot</span>
-            <h2>Cast your vote</h2>
+            <h2 id="ballotHeading">Cast your vote</h2>
           </div>
           <div class="identity-chip">
             <span>Voting as <strong id="currentVoterName">Nobody</strong></span>
@@ -65,16 +66,18 @@
           </div>
         </div>
 
+        <p id="ballotPrompt" class="ballot-prompt">Choose one option.</p>
         <div id="peopleGrid" class="people-grid" role="radiogroup" aria-label="Choose a colleague"></div>
+        <div id="wyrGrid" class="wyr-grid" role="radiogroup" aria-label="Choose one option" hidden></div>
 
         <label class="comment-field">
-          <span>Why did you choose them? <small>Optional and shown anonymously after voting closes</small></span>
+          <span id="commentLabel">Why did you choose them? <small>Optional and shown anonymously after voting closes</small></span>
           <textarea id="commentInput" maxlength="280" rows="3" placeholder="Add a comment…"></textarea>
           <span id="commentCount" class="character-count">0 / 280</span>
         </label>
 
         <div class="vote-actions">
-          <div id="selectionSummary" class="selection-summary">Nobody selected yet.</div>
+          <div id="selectionSummary" class="selection-summary">Nothing selected yet.</div>
           <button id="submitVote" class="primary-button" type="button" disabled>Submit vote</button>
         </div>
       </section>
